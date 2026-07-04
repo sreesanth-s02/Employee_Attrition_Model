@@ -15,31 +15,65 @@ def predict_attrition(new_employee_data):
     model = joblib.load('attrition_logistic_model.pkl')
     scaler = joblib.load('data_scaler.pkl')
 
-    # 2. Load Data Structure Template to match feature shapes
-    # (Ensures columns stay aligned in the exact order the model learned them)
-    df_template = pd.read_csv("data.csv").drop(columns=['Attrition'], errors='ignore')
+    # 2. Complete List of All Expected Features (Excluding Attrition)
+    # MUST contain all columns exactly as they appeared in your training dataset
+    feature_columns = [
+        'Age', 'BusinessTravel', 'DailyRate', 'Department', 'DistanceFromHome',
+        'Education', 'EducationField', 'EnvironmentSatisfaction', 'Gender', 'HourlyRate',
+        'JobInvolvement', 'JobLevel', 'JobRole', 'JobSatisfaction', 'MaritalStatus',
+        'MonthlyIncome', 'MonthlyRate', 'NumCompaniesWorked', 'OverTime', 'PercentSalaryHike',
+        'PerformanceRating', 'RelationshipSatisfaction', 'StockOptionLevel', 'TotalWorkingYears',
+        'TrainingTimesLastYear', 'WorkLifeBalance', 'YearsAtCompany', 'YearsInCurrentRole',
+        'YearsSinceLastPromotion', 'YearsWithCurrManager', 'EmployeeCount', 'EmployeeNumber', 
+        'Over18', 'StandardHours'
+    ]
+
+    # Create empty DataFrame structure matching the training data setup
+    df_template = pd.DataFrame(columns=feature_columns)
+
+    # 3. Handle Dropped Columns identically to training script
     cols_to_drop = ['EmployeeCount', 'EmployeeNumber', 'Over18', 'StandardHours']
     cols_to_drop = [c for c in cols_to_drop if c in df_template.columns]
+    
+    # We create the raw baseline schema structure
+    df_raw_template = df_template.copy()
+    
+    # Drop the unneeded fields from final processing pipeline template
     df_template = df_template.drop(columns=cols_to_drop)
 
-    # Convert dictionary input to a single-row DataFrame matching training structure
+    # Convert incoming dict to DataFrame using the exact structural fields
     input_df = pd.DataFrame([new_employee_data], columns=df_template.columns)
 
-    # 3. Match historical text encoding rules using data template properties
-    # Re-applies LabelEncoding structure precisely across text features
-    df_raw = pd.read_csv("data.csv").drop(columns=['Attrition'], errors='ignore').drop(columns=cols_to_drop)
+    # 4. Hardcoded Categorical Mappings (Replaces the data.csv requirement)
+    # Maps categories to matching integers without needing the CSV file source
+    categorical_mappings = {
+        'BusinessTravel': ['Non-Travel', 'Travel_Frequently', 'Travel_Rarely'],
+        'Department': ['Human Resources', 'Research & Development', 'Sales'],
+        'EducationField': ['Human Resources', 'Life Sciences', 'Marketing', 'Medical', 'Other', 'Technical Degree'],
+        'Gender': ['Female', 'Male'],
+        'JobRole': ['Healthcare Representative', 'Human Resources', 'Laboratory Technician', 'Manager', 'Manufacturing Director', 'Research Director', 'Research Scientist', 'Sales Executive', 'Sales Representative'],
+        'MaritalStatus': ['Divorced', 'Married', 'Single'],
+        'OverTime': ['No', 'Yes']
+    }
+
+    # Safeguard conversion step
     le = LabelEncoder()
     for col in input_df.select_dtypes(include=['object']).columns:
-        le.fit(df_raw[col])  # Fit on original column options to catch valid text states
-        input_df[col] = le.transform(input_df[col])
+        if col in categorical_mappings:
+            le.fit(categorical_mappings[col])
+            input_df[col] = le.transform(input_df[col])
+        else:
+            # Fallback if a column isn't pre-mapped
+            le.fit(input_df[col])
+            input_df[col] = le.transform(input_df[col])
 
-    # 4. Standardize Data Weights & Execute Evaluation
+    # 5. Standardize Data Weights & Execute Evaluation
     input_scaled = scaler.transform(input_df)
     
     prediction = model.predict(input_scaled)[0]
-    probabilities = model.predict_proba(input_scaled)[0] # Grab percentage split
+    probabilities = model.predict_proba(input_scaled)[0] 
 
-    # 5. Output Results
+    # 6. Output Results
     print("\n🔮 Attrition Prediction Results:")
     print("-" * 35)
     if prediction == 1:
@@ -50,38 +84,14 @@ def predict_attrition(new_employee_data):
         print(f"📊 Retention Confidence: {probabilities[0]:.2%}")
     print("-" * 35)
 
-# Example profile simulating a real employee entry
-# Customize these values below to test different attrition scenarios!
 sample_employee = {
-    'Age': 35,
-    'BusinessTravel': 'Travel_Rarely',
-    'DailyRate': 800,
-    'Department': 'Research & Development',
-    'DistanceFromHome': 5,
-    'Education': 3,
-    'EducationField': 'Life Sciences',
-    'EnvironmentSatisfaction': 4,
-    'Gender': 'Female',
-    'HourlyRate': 70,
-    'JobInvolvement': 3,
-    'JobLevel': 3,
-    'JobRole': 'Manager',
-    'JobSatisfaction': 4,
-    'MaritalStatus': 'Married',
-    'MonthlyIncome': 8000,
-    'MonthlyRate': 12000,
-    'NumCompaniesWorked': 1,
-    'OverTime': 'No',
-    'PercentSalaryHike': 20,
-    'PerformanceRating': 4,
-    'RelationshipSatisfaction': 4,
-    'StockOptionLevel': 1,
-    'TotalWorkingYears': 10,
-    'TrainingTimesLastYear': 3,
-    'WorkLifeBalance': 3,
-    'YearsAtCompany': 8,
-    'YearsInCurrentRole': 5,
-    'YearsSinceLastPromotion': 2,
+    'Age': 35, 'BusinessTravel': 'Travel_Rarely', 'DailyRate': 800, 'Department': 'Research & Development',
+    'DistanceFromHome': 5, 'Education': 3, 'EducationField': 'Life Sciences', 'EnvironmentSatisfaction': 4,
+    'Gender': 'Female', 'HourlyRate': 70, 'JobInvolvement': 3, 'JobLevel': 3, 'JobRole': 'Manager',
+    'JobSatisfaction': 4, 'MaritalStatus': 'Married', 'MonthlyIncome': 8000, 'MonthlyRate': 12000,
+    'NumCompaniesWorked': 1, 'OverTime': 'No', 'PercentSalaryHike': 20, 'PerformanceRating': 4,
+    'RelationshipSatisfaction': 4, 'StockOptionLevel': 1, 'TotalWorkingYears': 10, 'TrainingTimesLastYear': 3,
+    'WorkLifeBalance': 3, 'YearsAtCompany': 8, 'YearsInCurrentRole': 5, 'YearsSinceLastPromotion': 2,
     'YearsWithCurrManager': 4
 }
 

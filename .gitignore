@@ -1,2 +1,7 @@
-*.csv
-.venv/
+﻿python-service/venv/
+springboot-service/target/
+*.pyc
+__pycache__/
+.idea/
+*.iml
+.vscode/

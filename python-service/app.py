@@ -154,25 +154,74 @@ def run_prediction(profile):
     }
 
 
+def validate_essentials(essentials):
+    """Returns a list of error messages; empty list means input is valid."""
+    errors = []
+
+    required = [
+        'Age', 'MonthlyIncome', 'Department', 'JobRole', 'OverTime',
+        'DistanceFromHome', 'MaritalStatus', 'Gender',
+        'TotalWorkingYears', 'YearsAtCompany'
+    ]
+    missing = [k for k in required if k not in essentials]
+    if missing:
+        errors.append(f'Missing fields: {missing}')
+        return errors  # no point checking further if fields are missing
+
+    if not isinstance(essentials['Age'], int) or not (18 <= essentials['Age'] <= 65):
+        errors.append('Age must be an integer between 18 and 65')
+
+    if not isinstance(essentials['MonthlyIncome'], (int, float)) or essentials['MonthlyIncome'] <= 0:
+        errors.append('MonthlyIncome must be a positive number')
+
+    if essentials['Department'] not in DEPARTMENTS:
+        errors.append(f'Department must be one of {DEPARTMENTS}')
+
+    if essentials['JobRole'] not in JOB_ROLES:
+        errors.append(f'JobRole must be one of {JOB_ROLES}')
+
+    if essentials['OverTime'] not in OVERTIME_OPTIONS:
+        errors.append(f'OverTime must be one of {OVERTIME_OPTIONS}')
+
+    if not isinstance(essentials['DistanceFromHome'], int) or not (0 <= essentials['DistanceFromHome'] <= 100):
+        errors.append('DistanceFromHome must be an integer between 0 and 100')
+
+    if essentials['MaritalStatus'] not in MARITAL_STATUSES:
+        errors.append(f'MaritalStatus must be one of {MARITAL_STATUSES}')
+
+    if essentials['Gender'] not in GENDERS:
+        errors.append(f'Gender must be one of {GENDERS}')
+
+    if not isinstance(essentials['TotalWorkingYears'], int) or not (0 <= essentials['TotalWorkingYears'] <= 50):
+        errors.append('TotalWorkingYears must be an integer between 0 and 50')
+
+    if not isinstance(essentials['YearsAtCompany'], int) or not (0 <= essentials['YearsAtCompany'] <= 50):
+        errors.append('YearsAtCompany must be an integer between 0 and 50')
+
+    if isinstance(essentials.get('YearsAtCompany'), int) and isinstance(essentials.get('TotalWorkingYears'), int):
+        if essentials['YearsAtCompany'] > essentials['TotalWorkingYears']:
+            errors.append('YearsAtCompany cannot exceed TotalWorkingYears')
+
+    return errors
+
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        essentials = request.get_json()
-        required = [
-            'Age', 'MonthlyIncome', 'Department', 'JobRole', 'OverTime',
-            'DistanceFromHome', 'MaritalStatus', 'Gender',
-            'TotalWorkingYears', 'YearsAtCompany'
-        ]
-        missing = [k for k in required if k not in essentials]
-        if missing:
-            return jsonify({'error': f'Missing fields: {missing}'}), 400
+        essentials = request.get_json(silent=True)
+        if essentials is None:
+            return jsonify({'error': 'Request body must be valid JSON'}), 400
+
+        errors = validate_essentials(essentials)
+        if errors:
+            return jsonify({'error': 'Validation failed', 'details': errors}), 400
 
         profile = derive_full_profile(essentials)
         result = run_prediction(profile)
         return jsonify(result), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Unexpected server error', 'details': str(e)}), 500
 
 
 @app.route('/health', methods=['GET'])

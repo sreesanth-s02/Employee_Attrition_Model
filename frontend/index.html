@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attrition Predictor</title>
+<style>
+  :root {
+    --ink: #1c2321;
+    --paper: #f6f5f2;
+    --panel: #ffffff;
+    --line: #dcd9d2;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+    --risk: #b3432b;
+    --risk-soft: #f5e4de;
+    --muted: #6b6660;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  h1 { font-size: 26px; margin: 0 0 6px; font-weight: 700; }
+  header p { color: var(--muted); margin: 0; font-size: 14px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 28px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 13px; font-weight: 600; color: var(--ink); }
+  input, select {
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    background: var(--panel);
+  }
+  .error-text {
+    font-size: 12px;
+    color: var(--risk);
+    min-height: 14px;
+  }
+
+  button {
+    margin-top: 22px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: #264c42; }
+  button:disabled { background: var(--muted); cursor: not-allowed; }
+
+  .result {
+    margin-top: 20px;
+    padding: 18px;
+    border-radius: 8px;
+    display: none;
+  }
+  .result.show { display: block; }
+  .result.stay { background: var(--accent-soft); border: 1px solid var(--accent); }
+  .result.leave { background: var(--risk-soft); border: 1px solid var(--risk); }
+  .result-verdict { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .result.stay .result-verdict { color: var(--accent); }
+  .result.leave .result-verdict { color: var(--risk); }
+  .result-prob { font-size: 13px; color: var(--muted); }
+
+  .banner {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: none;
+  }
+  .banner.show { display: block; }
+  .banner.warn { background: #fdf0e1; border: 1px solid #d99a3f; color: #7a4e11; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Internal tool</div>
+    <h1>Employee Attrition Predictor</h1>
+    <p>Enter a few essentials — the rest is filled in automatically.</p>
+  </header>
+
+  <div class="panel">
+    <form id="predictForm" novalidate>
+      <div class="grid">
+        <div class="field">
+          <label for="age">Age</label>
+          <input type="number" id="age" min="18" max="65" required>
+          <div class="error-text" data-error="age"></div>
+        </div>
+
+        <div class="field">
+          <label for="monthlyIncome">Monthly Income</label>
+          <input type="number" id="monthlyIncome" min="1" required>
+          <div class="error-text" data-error="monthlyIncome"></div>
+        </div>
+
+        <div class="field">
+          <label for="department">Department</label>
+          <select id="department" required>
+            <option value="">Select…</option>
+            <option>Human Resources</option>
+            <option>Research & Development</option>
+            <option>Sales</option>
+          </select>
+          <div class="error-text" data-error="department"></div>
+        </div>
+
+        <div class="field">
+          <label for="jobRole">Job Role</label>
+          <select id="jobRole" required>
+            <option value="">Select…</option>
+            <option>Healthcare Representative</option>
+            <option>Human Resources</option>
+            <option>Laboratory Technician</option>
+            <option>Manager</option>
+            <option>Manufacturing Director</option>
+            <option>Research Director</option>
+            <option>Research Scientist</option>
+            <option>Sales Executive</option>
+            <option>Sales Representative</option>
+          </select>
+          <div class="error-text" data-error="jobRole"></div>
+        </div>
+
+        <div class="field">
+          <label for="overTime">Works Overtime</label>
+          <select id="overTime" required>
+            <option value="">Select…</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+          <div class="error-text" data-error="overTime"></div>
+        </div>
+
+        <div class="field">
+          <label for="distanceFromHome">Distance From Home (km)</label>
+          <input type="number" id="distanceFromHome" min="0" max="100" required>
+          <div class="error-text" data-error="distanceFromHome"></div>
+        </div>
+
+        <div class="field">
+          <label for="maritalStatus">Marital Status</label>
+          <select id="maritalStatus" required>
+            <option value="">Select…</option>
+            <option>Single</option>
+            <option>Married</option>
+            <option>Divorced</option>
+          </select>
+          <div class="error-text" data-error="maritalStatus"></div>
+        </div>
+
+        <div class="field">
+          <label for="gender">Gender</label>
+          <select id="gender" required>
+            <option value="">Select…</option>
+            <option>Female</option>
+            <option>Male</option>
+          </select>
+          <div class="error-text" data-error="gender"></div>
+        </div>
+
+        <div class="field">
+          <label for="totalWorkingYears">Total Working Years</label>
+          <input type="number" id="totalWorkingYears" min="0" max="50" required>
+          <div class="error-text" data-error="totalWorkingYears"></div>
+        </div>
+
+        <div class="field">
+          <label for="yearsAtCompany">Years At This Company</label>
+          <input type="number" id="yearsAtCompany" min="0" max="50" required>
+          <div class="error-text" data-error="yearsAtCompany"></div>
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn">Predict Attrition Risk</button>
+    </form>
+
+    <div class="banner warn" id="serviceBanner"></div>
+
+    <div class="result" id="result">
+      <div class="result-verdict" id="resultVerdict"></div>
+      <div class="result-prob" id="resultProb"></div>
+    </div>
+  </div>
+
+  <footer>Calls the Spring Boot API at localhost:8080, which forwards to the Python model service.</footer>
+</div>
+
+<script>
+  const API_URL = "http://localhost:8080/api/predict";
+  const form = document.getElementById("predictForm");
+  const submitBtn = document.getElementById("submitBtn");
+  const resultBox = document.getElementById("result");
+  const resultVerdict = document.getElementById("resultVerdict");
+  const resultProb = document.getElementById("resultProb");
+  const serviceBanner = document.getElementById("serviceBanner");
+
+  function clearErrors() {
+    document.querySelectorAll(".error-text").forEach(el => el.textContent = "");
+    serviceBanner.classList.remove("show");
+    serviceBanner.textContent = "";
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearErrors();
+    resultBox.classList.remove("show", "stay", "leave");
+
+    const payload = {
+      age: Number(document.getElementById("age").value),
+      monthlyIncome: Number(document.getElementById("monthlyIncome").value),
+      department: document.getElementById("department").value,
+      jobRole: document.getElementById("jobRole").value,
+      overTime: document.getElementById("overTime").value,
+      distanceFromHome: Number(document.getElementById("distanceFromHome").value),
+      maritalStatus: document.getElementById("maritalStatus").value,
+      gender: document.getElementById("gender").value,
+      totalWorkingYears: Number(document.getElementById("totalWorkingYears").value),
+      yearsAtCompany: Number(document.getElementById("yearsAtCompany").value)
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Predicting…";
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (res.status === 400 && data.fieldErrors) {
+        // Field-level validation errors from Spring Boot
+        Object.entries(data.fieldErrors).forEach(([field, message]) => {
+          const el = document.querySelector(`[data-error="${field}"]`);
+          if (el) el.textContent = message;
+        });
+        return;
+      }
+
+      if (res.status === 503) {
+        serviceBanner.textContent = "The prediction service is currently unavailable. Please try again shortly.";
+        serviceBanner.classList.add("show");
+        return;
+      }
+
+      if (!res.ok) {
+        serviceBanner.textContent = data.message || "Something went wrong. Please try again.";
+        serviceBanner.classList.add("show");
+        return;
+      }
+
+      // Success
+      const isLeave = data.prediction === "LEAVE";
+      resultBox.classList.add("show", isLeave ? "leave" : "stay");
+      resultVerdict.textContent = isLeave
+        ? "⚠ High Risk — likely to leave"
+        : "✓ Low Risk — likely to stay";
+      resultProb.textContent = isLeave
+        ? `Turnover probability: ${(data.turnoverProbability * 100).toFixed(1)}%`
+        : `Retention probability: ${(data.retentionProbability * 100).toFixed(1)}%`;
+
+    } catch (err) {
+      serviceBanner.textContent = "Could not reach the prediction server. Is it running?";
+      serviceBanner.classList.add("show");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Predict Attrition Risk";
+    }
+  });
+</script>
+</body>
+</html>>

@@ -117,11 +117,37 @@ A successful response has this shape:
 
 Invalid requests return HTTP `400` with validation details. Unexpected service failures return HTTP `500`.
 
+## Business-Rule Layer (post-model adjustments)
+
+The Logistic Regression model is trained on the IBM HR dataset (~16% attrition) and only 10 inputs are collected,
+so on its own it under-predicts obvious real-world risk (e.g. a 20-year-old, 1 year experience, very low salary,
+single employee was labelled STAY). Instead of retraining, `python-service/risk_rules.py` adjusts the model's
+probability with transparent rules:
+
+- Early-career risk: age <= 25 / under 30, experience <= 2 years
+- Low pay (absolute, and relative to the job role)
+- Single marital status
+- High-turnover roles (Sales Representative, Lab Technician, HR) vs low-turnover roles (Manager, Directors)
+- Long commute + overtime, first-year exits
+- Protective factors: senior, long-tenured, well paid, settled employees
+- Combination rule: 4+ early-career signals together force HIGH risk
+
+The API response keeps `prediction`, `turnoverProbability`, `retentionProbability` (now the adjusted values) and adds
+`riskLevel` (LOW / MEDIUM / HIGH), `riskFactors`, `protectiveFactors`, `ruleOverrideApplied`,
+`modelPrediction` and `modelTurnoverProbability` (the raw model output).
+
+Salary is in the dataset's USD scale. The frontend has a currency selector and converts INR to USD
+(`INR_PER_USD` in `frontend/index.html`) before calling the API.
+
+Run the scenario tests: `cd python-service && python test_rules.py`
+
 ## Project Structure
 
 ```text
 python-service/
   app.py
+  risk_rules.py                    # post-model business rules
+  test_rules.py                    # scenario tests
   train_logistics.py
   requirements.txt
   data.csv                         # required locally for training

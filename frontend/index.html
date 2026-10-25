@@ -113,6 +113,14 @@
   .banner.show { display: block; }
   .banner.warn { background: #fdf0e1; border: 1px solid #d99a3f; color: #7a4e11; }
 
+  .income-row { display: flex; gap: 8px; }
+  .income-row select { width: 96px; flex: none; }
+  .income-row input { flex: 1; min-width: 0; }
+  .factors { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink); }
+  .factors li { margin-bottom: 4px; }
+  .factors.good li { color: var(--accent); }
+  .factors-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 14px; }
+
   footer {
     text-align: center;
     color: var(--muted);
@@ -140,7 +148,13 @@
 
         <div class="field">
           <label for="monthlyIncome">Monthly Income</label>
-          <input type="number" id="monthlyIncome" min="1" required>
+          <div class="income-row">
+            <select id="currency" aria-label="Currency">
+              <option value="INR">₹ INR</option>
+              <option value="USD">$ USD</option>
+            </select>
+            <input type="number" id="monthlyIncome" min="1" required>
+          </div>
           <div class="error-text" data-error="monthlyIncome"></div>
         </div>
 
@@ -230,6 +244,7 @@
     <div class="result" id="result">
       <div class="result-verdict" id="resultVerdict"></div>
       <div class="result-prob" id="resultProb"></div>
+      <div id="factorsBox"></div>
     </div>
   </div>
 
@@ -238,12 +253,37 @@
 
 <script>
   const API_URL = "http://localhost:8080/api/predict";
+  // The model was trained on USD salaries, so INR is converted before sending.
+  // Update this constant if you want a different exchange rate.
+  const INR_PER_USD = 85;
   const form = document.getElementById("predictForm");
   const submitBtn = document.getElementById("submitBtn");
   const resultBox = document.getElementById("result");
   const resultVerdict = document.getElementById("resultVerdict");
   const resultProb = document.getElementById("resultProb");
   const serviceBanner = document.getElementById("serviceBanner");
+
+  function toUsd(amount) {
+    const cur = document.getElementById("currency").value;
+    return cur === "INR" ? Math.round((amount / INR_PER_USD) * 100) / 100 : amount;
+  }
+
+  function renderFactors(data) {
+    const box = document.getElementById("factorsBox");
+    box.innerHTML = "";
+    const add = (title, items, cls) => {
+      if (!items || !items.length) return;
+      const h = document.createElement("div");
+      h.className = "factors-title";
+      h.textContent = title;
+      const ul = document.createElement("ul");
+      ul.className = "factors " + cls;
+      items.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+      box.append(h, ul);
+    };
+    add("Why", data.riskFactors, "");
+    add("Working in their favour", data.protectiveFactors, "good");
+  }
 
   function clearErrors() {
     document.querySelectorAll(".error-text").forEach(el => el.textContent = "");
@@ -258,7 +298,7 @@
 
     const payload = {
       age: Number(document.getElementById("age").value),
-      monthlyIncome: Number(document.getElementById("monthlyIncome").value),
+      monthlyIncome: toUsd(Number(document.getElementById("monthlyIncome").value)),
       department: document.getElementById("department").value,
       jobRole: document.getElementById("jobRole").value,
       overTime: document.getElementById("overTime").value,
@@ -305,12 +345,16 @@
       // Success
       const isLeave = data.prediction === "LEAVE";
       resultBox.classList.add("show", isLeave ? "leave" : "stay");
+      const level = data.riskLevel || (isLeave ? "HIGH" : "LOW");
       resultVerdict.textContent = isLeave
         ? "⚠ High Risk — likely to leave"
-        : "✓ Low Risk — likely to stay";
+        : level === "MEDIUM"
+          ? "● Medium Risk — monitor this employee"
+          : "✓ Low Risk — likely to stay";
       resultProb.textContent = isLeave
         ? `Turnover probability: ${(data.turnoverProbability * 100).toFixed(1)}%`
         : `Retention probability: ${(data.retentionProbability * 100).toFixed(1)}%`;
+      renderFactors(data);
 
     } catch (err) {
       serviceBanner.textContent = "Could not reach the prediction server. Is it running?";
@@ -322,4 +366,4 @@
   });
 </script>
 </body>
-</html>>
+</html>

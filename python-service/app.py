@@ -5,6 +5,8 @@ import joblib
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+from risk_rules import apply_rules
+
 warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
@@ -29,6 +31,10 @@ DEPARTMENT_TO_FIELD = {
     'Sales': 'Marketing',
     'Research & Development': 'Life Sciences',
 }
+
+# Monthly income range (USD) present in the training data
+MODEL_INCOME_MIN = 1009
+MODEL_INCOME_MAX = 19999
 
 DEPARTMENTS = ['Human Resources', 'Research & Development', 'Sales']
 JOB_ROLES = [
@@ -216,9 +222,29 @@ def predict():
         if errors:
             return jsonify({'error': 'Validation failed', 'details': errors}), 400
 
-        profile = derive_full_profile(essentials)
-        result = run_prediction(profile)
-        return jsonify(result), 200
+        # Keep the model input inside the range it was trained on (1009-19999 USD/month);
+        # the business rules still see the real, unclamped income.
+        model_input = dict(essentials)
+        model_input['MonthlyIncome'] = min(max(essentials['MonthlyIncome'], MODEL_INCOME_MIN), MODEL_INCOME_MAX)
+
+        profile = derive_full_profile(model_input)
+        raw = run_prediction(profile)
+
+        # Post-model business rules (see risk_rules.py)
+        rules = apply_rules(essentials, raw['turnoverProbability'])
+        adjusted = rules['adjustedProbability']
+
+        return jsonify({
+            'prediction': rules['prediction'],
+            'turnoverProbability': adjusted,
+            'retentionProbability': round(1 - adjusted, 4),
+            'riskLevel': rules['riskLevel'],
+            'riskFactors': rules['riskFactors'],
+            'protectiveFactors': rules['protectiveFactors'],
+            'ruleOverrideApplied': rules['ruleOverrideApplied'],
+            'modelPrediction': raw['prediction'],
+            'modelTurnoverProbability': raw['turnoverProbability'],
+        }), 200
 
     except Exception as e:
         return jsonify({'error': 'Unexpected server error', 'details': str(e)}), 500
